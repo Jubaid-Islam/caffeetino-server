@@ -5,4 +5,4 @@ dist-ssr
 *.local
 .vscode/
 .vercel/
-serviceAccontKey.json
+serviceAccountKey.json
