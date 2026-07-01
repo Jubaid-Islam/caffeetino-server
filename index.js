@@ -66,8 +66,6 @@ const client = new MongoClient(uri, {
 
 async function run() {
     try {
-        // await client.connect();
-        // console.log("MongoDB Connected Successfully!");
 
         const database = client.db('coffee-web')
         const coffeesCollection = database.collection('coffees')
@@ -145,8 +143,7 @@ async function run() {
             const coffeeData = req.body
             coffeeData.quantity = Number(coffeeData.quantity)
             const result = await coffeesCollection.insertOne(coffeeData)
-            console.log(coffeeData);
-            res.send({ ...result, message: "got it" })
+            res.send({ ...result, message: "coffee save successfully" })
         })
 
         //update coffee
@@ -154,7 +151,7 @@ async function run() {
             const id = req.params.id
             const updatedCoffee = req.body
 
-            // Ensure quantity is numeric if present
+            // Ensure the quantity is numeric 
             if (updatedCoffee.quantity !== undefined) {
                 updatedCoffee.quantity = Number(updatedCoffee.quantity)
             }
@@ -163,7 +160,6 @@ async function run() {
                 { _id: new ObjectId(id) },
                 { $set: updatedCoffee }
             )
-
             res.send(result)
         })
 
@@ -173,7 +169,6 @@ async function run() {
             const id = req.params.id
             const filter = { _id: new ObjectId(id) }
             const coffee = await coffeesCollection.findOne(filter)
-            console.log(id);
             res.send(coffee)
         })
 
@@ -261,30 +256,77 @@ async function run() {
         })
 
 
-        // cancel order
-        app.delete('/order/:orderId', async (req, res) => {
-            const orderId = req.params.orderId
-            const filter = { _id: new ObjectId(orderId) }
-            const order = await ordersCollection.findOne(filter)
+app.patch("/order/cancel/:orderId", async (req, res) => {
+  try {
+    const { orderId } = req.params;
 
-            if (!order) {
-                return res.status(404).send({ message: "Order not found" })
-            }
+    const filter = { _id: new ObjectId(orderId) };
+    const order = await ordersCollection.findOne(filter);
 
-            const result = await ordersCollection.deleteOne(filter)
+    if (!order) {
+      return res.status(404).send({
+        success: false,
+        message: "Order not found",
+      });
+    }
 
-            // restore coffee quantity (+1)
-            await coffeesCollection.updateOne(
-                { _id: new ObjectId(order.coffeeId) },
-                { $inc: { quantity: 1 } }
-            )
+    // Prevent duplicate refunds
+    if (order.status === "cancelled") {
+      return res.status(400).send({
+        success: false,
+        message: "Order is already cancelled.",
+      });
+    }
 
-            res.send({
-                success: true,
-                message: "Order cancelled successfully"
-            })
-        })
+    // Full refund
+    try {
+      if (order.paymentIntentId) {
+        await stripe.refunds.create({
+          payment_intent: order.paymentIntentId,
+        });
+      }
+    } catch (stripeError) {
+      const isAlreadyRefunded = 
+        stripeError.code === 'charge_already_refunded' || 
+        stripeError.raw?.code === 'charge_already_refunded' ||
+        (stripeError.message && stripeError.message.includes('already been refunded'));
 
+      if (isAlreadyRefunded) {
+        console.warn(`Stripe refund already processed for payment intent: ${order.paymentIntentId}`);
+      } else {
+        throw stripeError;
+      }
+    }
+
+    // Restore coffee quantity
+    const incQuantity = Number(order.quantity) || 1;
+    await coffeesCollection.updateOne(
+      { _id: new ObjectId(order.coffeeId) },
+      { $inc: { quantity: incQuantity } }
+    );
+
+    // Update order instead of deleting
+    await ordersCollection.updateOne(filter, {
+      $set: {
+        status: "cancelled",
+        refunded: true,
+        refundedAt: new Date(),
+      },
+    });
+
+    res.send({
+      success: true,
+      message: "Order cancelled and refunded successfully.",
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).send({
+      success: false,
+      message: error.message,
+    });
+  }
+});
 
         // ...CART ENDPOINTS
 
