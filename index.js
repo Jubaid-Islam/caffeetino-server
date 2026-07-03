@@ -32,7 +32,6 @@ if (serviceAccount) {
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
-        console.log("Firebase Admin initialized successfully")
     } catch (error) {
         console.error("Firebase Admin initialization failed:", error.message)
     }
@@ -151,7 +150,7 @@ async function run() {
             const id = req.params.id
             const updatedCoffee = req.body
 
-            // Ensure the quantity is numeric 
+            // numeric quantity conversion
             if (updatedCoffee.quantity !== undefined) {
                 updatedCoffee.quantity = Number(updatedCoffee.quantity)
             }
@@ -164,7 +163,7 @@ async function run() {
         })
 
 
-        //get single coffee by id
+        //get single coffee 
         app.get('/coffee/:id', async (req, res) => {
             const id = req.params.id
             const filter = { _id: new ObjectId(id) }
@@ -177,7 +176,7 @@ async function run() {
             const email = req.params.email
             const filter = { email }
             const myCoffees = await coffeesCollection.find(filter).toArray()
-            console.log(email);
+           
             res.send(myCoffees)
         })
 
@@ -319,7 +318,6 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
       message: "Order cancelled and refunded successfully.",
     });
   } catch (error) {
-    console.error(error);
 
     res.status(500).send({
       success: false,
@@ -340,7 +338,7 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
                     return res.send({ items: [] })
                 }
 
-                // Fetch full coffee details for each item in cart
+                // coffee details for each item in cart
                 const cartWithDetails = await Promise.all(
                     (userCart.items || []).map(async (item) => {
                         const coffeeData = await coffeesCollection.findOne({ _id: new ObjectId(item._id) })
@@ -355,8 +353,8 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
 
                 res.send({ items: cartWithDetails })
             } catch (error) {
-                console.error('Error fetching cart:', error)
-                res.status(500).send({ message: 'Error fetching cart' })
+            
+                res.status(500).send({ message: 'Error fetching cart'+ error.message  })
             }
         })
 
@@ -414,7 +412,7 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
 
                 res.send({ items: cartWithDetails })
             } catch (error) {
-                console.error('Error adding to cart:', error)
+           
                 res.status(500).send({ message: 'Error adding to cart: ' + error.message })
             }
         })
@@ -496,7 +494,6 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
 
                 res.send({ items: [] })
             } catch (error) {
-                console.error('Error clearing cart:', error)
                 res.status(500).send({ message: 'Error clearing cart' })
             }
         })
@@ -507,22 +504,20 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
                 const email = req.user.email;
                 const { paymentIntentId, status } = req.body;
 
-                console.log('Creating order for email:', email);
-
                 // Get user's cart
                 const userCart = await cartCollection.findOne({ email });
 
                 if (!userCart) {
-                    console.log('No cart found for email:', email);
+                  
                     return res.status(400).send({ message: "Cart not found" });
                 }
 
                 if (!userCart.items || userCart.items.length === 0) {
-                    console.log('Cart is empty for email:', email);
+          
                     return res.status(400).send({ message: "Cart is empty" });
                 }
 
-                console.log(`Found ${userCart.items.length} items in cart`);
+         
 
                 // Create order for each item in cart
                 const orderPromises = userCart.items.map(async (item) => {
@@ -541,9 +536,9 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
 
                     const orderResult = await ordersCollection.insertOne(orderData);
 
-                    // Decrease coffee quantity in stock
+                    // Decrease coffee quantity 
                     if (orderResult.acknowledged) {
-                        // Get current coffee to ensure quantity is properly converted
+                      
                         const currentCoffee = await coffeesCollection.findOne({ _id: new ObjectId(item._id) });
 
                         if (currentCoffee) {
@@ -573,7 +568,7 @@ app.patch("/order/cancel/:orderId", async (req, res) => {
                     message: "Orders created successfully from cart",
                 });
             } catch (error) {
-                console.error('Error creating order from cart:', error);
+          
                 res.status(500).send({ message: 'Error creating order from cart: ' + error.message });
             }
         })
