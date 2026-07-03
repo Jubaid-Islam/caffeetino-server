@@ -46,7 +46,7 @@ const port = process.env.PORT || 3000
 
 // middleware
 app.use(cors({
-    origin: ['http://localhost:5173', 'https://coffeetino.web.app'],
+    origin: ['http://localhost:5173','https://coffeetino.web.app'],
     credentials: true
 }))
 app.use(express.json())
