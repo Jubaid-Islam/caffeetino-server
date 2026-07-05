@@ -36,7 +36,7 @@ Backend API for the Caffeetino coffee web store, responsible for authentication,
 
 ## Related Repository
 
-- Client: https://github.com/Jubaid-Islam/caffeetino_client
+- Client: https://github.com/Jubaid-Islam/caffeetino-client
 
 ## Author
 
